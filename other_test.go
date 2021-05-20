@@ -10,11 +10,12 @@ import (
 )
 
 func TestOther(t *testing.T) {
+	return
 	var wg sync.WaitGroup
 	var a int64
 	s := skipset.NewInt64Desc()
 	q := NewUint64()
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 100000000; i++ {
 		wg.Add(1)
 		go func() {
 			atomic.AddInt64(&a, 1)

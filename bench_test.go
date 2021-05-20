@@ -17,13 +17,13 @@ type benchTask struct {
 }
 
 func BenchmarkDefault(b *testing.B) {
-	all := []benchTask{benchTask{
+	all := []benchTask{{
 		name: "LSCQ", New: func() uint64queue {
 			return NewUint64()
-		}}, benchTask{
+		}}, {
 		name: "LinkedQ", New: func() uint64queue {
 			return newLQ()
-		}}, benchTask{
+		}}, {
 		name: "MSQ", New: func() uint64queue {
 			return newMSQv1()
 		},
