@@ -12,9 +12,33 @@ const (
 	maxIndex   = (1 << 19) - 1
 )
 
+type lscq2 struct {
+	head *scq2
+	_    [cacheLineSize - unsafe.Sizeof(new(uintptr))]byte
+	tail *scq2
+}
+
+func newLSCQ2() *lscq2 {
+	q := newSCQ2(scqsize)
+	return &lscq2{head: q, tail: q}
+}
+
+func (q *lscq2) Enqueue(data uint64) bool {
+	for {
+		cq := (*scq2)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&q.head))))
+		nex := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&cq.next)))
+		if nex != nil {
+			// Help move cq.next into tail.
+			atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.tail)), (unsafe.Pointer(cq)), nex)
+			continue
+		}
+	}
+}
+
 type scq2 struct {
 	aq   *innerSCQ2
 	fq   *innerSCQ2
+	next *scq2
 	data []uint64
 }
 
@@ -60,8 +84,8 @@ type innerSCQ2 struct {
 
 func newInnerSCQ2Empty(size int) *innerSCQ2 {
 	ring := make([]uint64, size*2)
-	for i, _ := range ring {
-		ring[i] = newInnerSCQEntry(true, maxIndex, 0)
+	for i := range ring {
+		ring[i] = newInnerSCQEntry(true, maxIndex, 0) // 1<<63 + math.MaxUint64&maskIndex
 	}
 	return &innerSCQ2{
 		head:      uint64(2 * size),
@@ -74,25 +98,14 @@ func newInnerSCQ2Empty(size int) *innerSCQ2 {
 
 func newInnerSCQ2Full(size int) *innerSCQ2 {
 	q := newInnerSCQ2Empty(size)
+	// for i := 0; i < size; i++ {
+	// 	q.Enqueue(uint64(i))
+	// }
+	q.head = 0
 	for i := 0; i < size; i++ {
-		q.Enqueue(uint64(i))
+		q.ring[cacheRemap(i, size*2)] = uint64(1<<63) + uint64(i<<19)
 	}
 	return q
-	// ring := make([]uint64, size*2)
-	// for i := 0; i < size; i++ {
-	// 	ring[i] = newInnerSCQEntry(true, uint64(i), 0)
-	// }
-	// for i := size; i < 2*size; i++ {
-	// 	ring[i] = newInnerSCQEntry(true, maxIndex, 0)
-	// }
-
-	// return &innerSCQ2{
-	// 	head:      0,
-	// 	tail:      uint64(2 * size),
-	// 	threshold: int64(size*3) - 1,
-	// 	n:         size,
-	// 	ring:      ring,
-	// }
 }
 
 func atomicIncrUint64(addr *uint64) uint64 {
@@ -119,7 +132,7 @@ func newInnerSCQEntry(isSafe bool, index, cycle uint64) uint64 {
 func (q *innerSCQ2) Enqueue(index uint64) bool {
 	for {
 		T := atomicIncrUint64(&q.tail)
-		entAddr := &q.ring[T%uint64(2*q.n)]
+		entAddr := &q.ring[cacheRemap(int(T&uint64(2*q.n-1)), cap(q.ring))]
 		cycleT := T / uint64(2*q.n)
 	eqretry:
 		ent := atomic.LoadUint64(entAddr)
@@ -143,7 +156,7 @@ func (q *innerSCQ2) Dequeue() (value uint64, ok bool) {
 	}
 	for {
 		H := atomicIncrUint64(&q.head)
-		entAddr := &q.ring[H%uint64(2*q.n)]
+		entAddr := &q.ring[cacheRemap(int(H&uint64(2*q.n-1)), cap(q.ring))]
 		cycleH := H / uint64(2*q.n)
 	dqretry:
 		ent := atomic.LoadUint64(entAddr)

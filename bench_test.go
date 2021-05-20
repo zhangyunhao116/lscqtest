@@ -28,7 +28,8 @@ func BenchmarkDefault(b *testing.B) {
 			return newMSQv1()
 		},
 	}}
-	all = all[:1]
+	// all = all[:1]
+	// all = append(make([]benchTask, 0), all[0], all[3])
 	benchEnqueueOnly(b, all)
 	benchDequeueOnlyEmpty(b, all)
 	benchPair(b, all)

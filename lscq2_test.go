@@ -9,7 +9,8 @@ import (
 )
 
 func TestBoundedQueue2(t *testing.T) {
-	const size = 32
+	return
+	const size = scqsize
 	q := newSCQ2(size)
 	s := skipset.NewUint64()
 
@@ -121,5 +122,20 @@ func TestBoundedQueue2(t *testing.T) {
 
 	if s1.Len() != s2.Len() {
 		t.Fatal("invalid")
+	}
+}
+
+func TestBoundedQueue3(t *testing.T) {
+	return
+	size := 1 << 12
+	q := newInnerSCQ2Empty(size)
+	for i := 0; i < size; i++ {
+		q.Enqueue(uint64(i))
+	}
+	for i := 0; i < size; i++ {
+		v, ok := q.Dequeue()
+		if !ok || v != uint64(i) {
+			t.Fatal(ok, v, i)
+		}
 	}
 }
