@@ -1,4 +1,4 @@
-module code.byted.org/zhangyunhao/lscq
+module github.com/zhangyunhao116/lscqtest
 
 go 1.16
 
