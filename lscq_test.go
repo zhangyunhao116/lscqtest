@@ -22,6 +22,7 @@ func TestBoundedQueue(t *testing.T) {
 	// Single goroutine correctness.
 	for i := 0; i < size; i++ {
 		if !q.Enqueue(uint64(i)) {
+			println(i)
 			t.Fatal()
 		}
 		s.Add(uint64(i))

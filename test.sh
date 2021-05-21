@@ -1,0 +1,1 @@
+go run types_gen.go  && go test
