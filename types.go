@@ -113,8 +113,6 @@ func newUint64SCQ(n int) *uint64SCQ {
 		tail:      uint64(n),
 		threshold: -1,
 		ring:      ring,
-		// enqueueLimit: int64(n),
-		// dequeueLimit: int64(n),
 	}
 }
 
@@ -134,17 +132,6 @@ func (q *uint64SCQ) Enqueue(data uint64) bool {
 	if uint64Get63(atomic.LoadUint64(&q.tail)) >= qhead+scqsize {
 		return false
 	}
-	// Enqueue limit
-	// for {
-	// 	if atomic.AddInt64(&q.enqueueLimit, -1) < 0 {
-	// 		panic("!")
-	// 		atomic.AddInt64(&q.enqueueLimit, 1)
-	// 		continue
-	// 	} else {
-	// 		defer atomic.AddInt64(&q.enqueueLimit, 1)
-	// 		break
-	// 	}
-	// }
 
 	for {
 		// Increment the TAIL, try to occupy an entry.
@@ -191,17 +178,7 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 		// Empty queue.
 		return
 	}
-	// Dequeue limit
-	// for {
-	// 	if atomic.AddInt64(&q.dequeueLimit, -1) < 0 {
-	// 		panic("!")
-	// 		atomic.AddInt64(&q.dequeueLimit, 1)
-	// 		continue
-	// 	} else {
-	// 		defer atomic.AddInt64(&q.dequeueLimit, 1)
-	// 		break
-	// 	}
-	// }
+
 	for {
 		// Decrement HEAD, try to release an entry.
 		H := atomic.AddUint64(&q.head, 1)

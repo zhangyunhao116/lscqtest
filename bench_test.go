@@ -31,8 +31,8 @@ func BenchmarkDefault(b *testing.B) {
 			return newLSCQ2()
 		},
 	}}
-	// all = all[:1]
-	all = append(make([]benchTask, 0), all[3])
+	all = all[:1]
+	// all = append(make([]benchTask, 0), all[3])
 	benchEnqueueOnly(b, all)
 	benchDequeueOnlyEmpty(b, all)
 	benchPair(b, all)
