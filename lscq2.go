@@ -127,7 +127,8 @@ func newInnerSCQEntry(isSafe bool, index, cycle uint64) uint64 {
 
 func (q *innerSCQ2) Enqueue(index uint64) bool {
 	for {
-		T := atomicIncrUint64(&q.tail)
+		tailvalue := atomicIncrUint64(&q.tail)
+		T := uint64Get63(tailvalue)
 		entAddr := &q.ring[T&uint64(2*q.n-1)]
 		cycleT := T / uint64(2*q.n)
 	eqretry:
@@ -170,9 +171,10 @@ func (q *innerSCQ2) Dequeue() (value uint64, ok bool) {
 				goto dqretry
 			}
 		}
-		T := atomic.LoadUint64(&q.tail)
+		tailvalue := atomic.LoadUint64(&q.tail)
+		T := uint64Get63(tailvalue)
 		if T <= H+1 {
-			q.catchup(T, H+1)
+			q.catchup(tailvalue, H+1)
 			atomic.AddInt64(&q.threshold, -1)
 			return
 		}
@@ -182,10 +184,11 @@ func (q *innerSCQ2) Dequeue() (value uint64, ok bool) {
 	}
 }
 
-func (q *innerSCQ2) catchup(tail, head uint64) {
-	for !atomic.CompareAndSwapUint64(&q.tail, tail, head) {
-		head := atomic.LoadUint64(&q.head)
-		tail := atomic.LoadUint64(&q.tail)
+func (q *innerSCQ2) catchup(tailvalue, head uint64) {
+	for !atomic.CompareAndSwapUint64(&q.tail, tailvalue, head) {
+		head = atomic.LoadUint64(&q.head)
+		tailvalue = atomic.LoadUint64(&q.tail)
+		tail := uint64Get63(tailvalue)
 		if tail >= head {
 			break
 		}
