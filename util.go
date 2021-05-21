@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	scqsize       = 1 << 12 // 1 << 12 // 1 << 12 // 1 << 12
+	scqsize       = 1 << 16 // 1 << 12 // 1 << 12 // 1 << 12
 	cacheLineSize = unsafe.Sizeof(cpu.CacheLinePad{})
 )
 
