@@ -25,12 +25,55 @@ func newLSCQ2() *lscq2 {
 
 func (q *lscq2) Enqueue(data uint64) bool {
 	for {
-		cq := (*scq2)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&q.head))))
+		cq := (*scq2)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&q.tail))))
 		nex := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&cq.next)))
 		if nex != nil {
 			// Help move cq.next into tail.
 			atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.tail)), (unsafe.Pointer(cq)), nex)
 			continue
+		}
+		if cq.EnqueueWithClose(data) {
+			return true
+		}
+		// Concurrent cq is full.
+		ncq := newSCQ2(scqsize) // pointerSCQpool.Get().(*pointerSCQ) // create a new queue
+		ncq.Enqueue(data)
+		// Try Add this queue into cq.next.
+		if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&cq.next)), nil, unsafe.Pointer(ncq)) {
+			// Success.
+			// Try move cq.next into tail (we don't need to recheck since other enqueuer will help).
+			atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.tail)), unsafe.Pointer(cq), unsafe.Pointer(ncq))
+			return true
+		}
+		ncq.Dequeue()
+		// TODO: put it into pool
+	}
+}
+func (q *lscq2) Dequeue() (data uint64, ok bool) {
+	for {
+		cq := (*scq2)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&q.head))))
+		data, ok = cq.Dequeue()
+		if ok {
+			return
+		}
+		// cq does not have enough entries.
+		nex := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&cq.next)))
+		if nex == nil {
+			// We don't have next SCQ.
+			return
+		}
+		// cq.next is not empty, subsequent entry will be insert into cq.next instead of cq.
+		// So if cq is empty, we can move it into ncqpool.
+		atomic.StoreInt64(&cq.aq.threshold, int64(scqsize*3)-1)
+		data, ok = cq.Dequeue()
+		if ok {
+			return
+		}
+		if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.head)), (unsafe.Pointer(cq)), nex) {
+			// We can't ensure no other goroutines will access cq.
+			// This queue can still be previous dequeue's cq.
+			// scqpool.Put(cq)
+			cq = nil
 		}
 	}
 }
@@ -57,6 +100,21 @@ func (q *scq2) Enqueue(data uint64) bool {
 	}
 	q.data[idx] = data
 	q.aq.Enqueue(idx)
+	return true
+}
+
+func (q *scq2) EnqueueWithClose(data uint64) bool {
+	idx, ok := q.fq.Dequeue()
+	if !ok {
+		atomicTestAndSetFirstBit(&q.aq.tail)
+		return false
+	}
+	q.data[idx] = data
+	if !q.aq.Enqueue(idx) {
+		q.data[idx] = 0
+		q.fq.Enqueue(idx)
+		return false
+	}
 	return true
 }
 
@@ -128,6 +186,9 @@ func newInnerSCQEntry(isSafe bool, index, cycle uint64) uint64 {
 func (q *innerSCQ2) Enqueue(index uint64) bool {
 	for {
 		tailvalue := atomicIncrUint64(&q.tail)
+		if tailvalue>>63 == 1 {
+			return false // queue is closed
+		}
 		T := uint64Get63(tailvalue)
 		entAddr := &q.ring[T&uint64(2*q.n-1)]
 		cycleT := T / uint64(2*q.n)
