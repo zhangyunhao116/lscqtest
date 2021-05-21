@@ -92,10 +92,6 @@ type pointerSCQ struct {
 	_         [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
 	next      *pointerSCQ
 	ring      []scqNodePointer
-	// _            [cacheLineSize - unsafe.Sizeof(new(uint64))*3]byte
-	// enqueueLimit int64
-	// _            [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
-	// dequeueLimit int64
 }
 
 type scqNodePointer struct {
@@ -116,8 +112,6 @@ func newPointerSCQ(n int) *pointerSCQ {
 		tail:      uint64(n),
 		threshold: -1,
 		ring:      ring,
-		// enqueueLimit: int64(n),
-		// dequeueLimit: int64(n),
 	}
 }
 
@@ -137,17 +131,6 @@ func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 	if uint64Get63(atomic.LoadUint64(&q.tail)) >= qhead+scqsize {
 		return false
 	}
-	// Enqueue limit
-	// for {
-	// 	if atomic.AddInt64(&q.enqueueLimit, -1) < 0 {
-	// 		panic("!")
-	// 		atomic.AddInt64(&q.enqueueLimit, 1)
-	// 		continue
-	// 	} else {
-	// 		defer atomic.AddInt64(&q.enqueueLimit, 1)
-	// 		break
-	// 	}
-	// }
 
 	for {
 		// Increment the TAIL, try to occupy an entry.
@@ -194,17 +177,7 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 		// Empty queue.
 		return
 	}
-	// Dequeue limit
-	// for {
-	// 	if atomic.AddInt64(&q.dequeueLimit, -1) < 0 {
-	// 		panic("!")
-	// 		atomic.AddInt64(&q.dequeueLimit, 1)
-	// 		continue
-	// 	} else {
-	// 		defer atomic.AddInt64(&q.dequeueLimit, 1)
-	// 		break
-	// 	}
-	// }
+
 	for {
 		// Decrement HEAD, try to release an entry.
 		H := atomic.AddUint64(&q.head, 1)

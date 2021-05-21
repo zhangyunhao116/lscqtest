@@ -93,10 +93,6 @@ type uint64SCQ struct {
 	_         [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
 	next      *uint64SCQ
 	ring      []scqNodeUint64
-	// _            [cacheLineSize - unsafe.Sizeof(new(uint64))*3]byte
-	// enqueueLimit int64
-	// _            [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
-	// dequeueLimit int64
 }
 
 type scqNodeUint64 struct {
@@ -216,8 +212,7 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 		ent := loadSCQNodeUint64(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
 		if cycleEnt == cycleH { // same cycle, return this entry directly
-			// atomicTestAndSetSecondBit(&entAddr.flags)
-			atomic.StoreUint64(&entAddr.flags, newSCQFlags(isSafe, true, cycleEnt))
+			atomicTestAndSetSecondBit(&entAddr.flags)
 			// Special case, if the data type is `unsafe.Pointer` we need reset it.
 
 			return ent.data, true
