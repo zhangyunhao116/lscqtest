@@ -141,7 +141,7 @@ func (q *uint64SCQ) Enqueue(data uint64) bool {
 		if uint64Get1(tailvalue) { // the queue is closed
 			return false
 		}
-		entAddr := &q.ring[T&uint64(scqsize-1)]
+		entAddr := &q.ring[cacheRemap3(T&uint64(scqsize-1))]
 		cycleT := T / scqsize
 	eqretry:
 		ent := loadSCQNodeUint64(unsafe.Pointer(entAddr))
@@ -183,8 +183,9 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 		// Decrement HEAD, try to release an entry.
 		H := atomic.AddUint64(&q.head, 1)
 		H -= 1 // we need previous value
-		entAddr := &q.ring[H&uint64(scqsize-1)]
+		entAddr := &q.ring[cacheRemap3(H&uint64(scqsize-1))]
 		cycleH := H / scqsize
+		retrycount := 0
 	dqretry:
 		ent := loadSCQNodeUint64(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
@@ -193,6 +194,10 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 			// Special case, if the data type is `unsafe.Pointer` we need reset it.
 
 			return ent.data, true
+		}
+		if retrycount <= 3 {
+			retrycount++
+			goto dqretry
 		}
 		// Try to mark this node unsafe.
 		var newEnt scqNodeUint64
