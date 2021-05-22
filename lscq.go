@@ -189,9 +189,8 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 		ent := loadSCQNodePointer(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
 		if cycleEnt == cycleH { // same cycle, return this entry directly
-			atomicTestAndSetSecondBit(&entAddr.flags)
-			// Special case, if the data type is `unsafe.Pointer` we need reset it.
-			atomic.StorePointer((*unsafe.Pointer)(ent.data), nil)
+			// atomicTestAndSetSecondBit(&entAddr.flags)
+			compareAndSwapSCQNodePointer(entAddr, ent, scqNodePointer{flags: newSCQFlags(isSafe, true, cycleEnt)})
 			return ent.data, true
 		}
 		if retrycount <= 3 {

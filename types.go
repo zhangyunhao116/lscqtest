@@ -190,9 +190,8 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 		ent := loadSCQNodeUint64(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
 		if cycleEnt == cycleH { // same cycle, return this entry directly
-			atomicTestAndSetSecondBit(&entAddr.flags)
-			// Special case, if the data type is `unsafe.Pointer` we need reset it.
-
+			// atomicTestAndSetSecondBit(&entAddr.flags)
+			compareAndSwapSCQNodeUint64(entAddr, ent, scqNodeUint64{flags: newSCQFlags(isSafe, true, cycleEnt)})
 			return ent.data, true
 		}
 		if retrycount <= 3 {
