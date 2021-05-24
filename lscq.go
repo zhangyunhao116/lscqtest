@@ -143,8 +143,10 @@ func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 		entAddr := &q.ring[cacheRemap3(T&uint64(scqsize-1))]
 		cycleT := T / scqsize
 	eqretry:
-		ent := loadSCQNodePointer(unsafe.Pointer(entAddr))
-		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
+		// Enqueue do not need data, if this entry is empty, we can assume the data is also empty.
+		entFlags := atomic.LoadUint64((*uint64)(unsafe.Pointer(entAddr)))
+		isSafe, isEmpty, cycleEnt := loadSCQFlags(entFlags)
+		ent := scqNodePointer{flags: entFlags}
 		if cycleEnt < cycleT && isEmpty && (isSafe || atomic.LoadUint64(&q.head) <= T) {
 			// We can use this entry for adding new data if
 			// 1. cycleEnt < cycleT
@@ -186,6 +188,9 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 		cycleH := H / scqsize
 		retrycount := 0
 	dqretry:
+		// entFlags := atomic.LoadUint64((*uint64)(unsafe.Pointer(entAddr)))
+		// isSafe, isEmpty, cycleEnt := loadSCQFlags(entFlags)
+		// ent := scqNodePointer{flags: entFlags}
 		ent := loadSCQNodePointer(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
 		if cycleEnt == cycleH { // same cycle, return this entry directly
