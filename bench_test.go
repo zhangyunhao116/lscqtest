@@ -38,6 +38,8 @@ func BenchmarkDefault(b *testing.B) {
 	bench50Enqueue50Dequeue(b, all)
 	bench30Enqueue70Dequeue(b, all)
 	bench70Enqueue30Dequeue(b, all)
+	// bench10Enqueue90Dequeue(b, all)
+	// bench90Enqueue10Dequeue(b, all)
 }
 
 func reportalloc(b *testing.B) {
@@ -53,7 +55,7 @@ func benchPair(b *testing.B, benchTasks []benchTask) {
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					q.Enqueue(uint64(fastrand.Int63()))
+					q.Enqueue(uint64(fastrand.Uint32()))
 					q.Dequeue()
 				}
 			})
@@ -70,7 +72,7 @@ func bench50Enqueue50Dequeue(b *testing.B, benchTasks []benchTask) {
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
 					if fastrand.Uint32n(2) == 0 {
-						q.Enqueue(uint64(fastrand.Int63()))
+						q.Enqueue(uint64(fastrand.Uint32()))
 					} else {
 						q.Dequeue()
 					}
@@ -89,7 +91,7 @@ func bench70Enqueue30Dequeue(b *testing.B, benchTasks []benchTask) {
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
 					if fastrand.Uint32n(10) > 2 {
-						q.Enqueue(uint64(fastrand.Int63()))
+						q.Enqueue(uint64(fastrand.Uint32()))
 					} else {
 						q.Dequeue()
 					}
@@ -108,7 +110,7 @@ func bench30Enqueue70Dequeue(b *testing.B, benchTasks []benchTask) {
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
 					if fastrand.Uint32n(10) <= 2 {
-						q.Enqueue(uint64(fastrand.Int63()))
+						q.Enqueue(uint64(fastrand.Uint32()))
 					} else {
 						q.Dequeue()
 					}
@@ -126,7 +128,7 @@ func benchEnqueueOnly(b *testing.B, benchTasks []benchTask) {
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					q.Enqueue(uint64(fastrand.Int63()))
+					q.Enqueue(uint64(fastrand.Uint32()))
 				}
 			})
 		})
