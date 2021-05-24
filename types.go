@@ -232,11 +232,19 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 }
 
 func (q *uint64SCQ) catchup(tailvalue, head uint64) {
+	originalHead := head
 	for {
+		if uint64Get1(tailvalue) {
+			head += 1 << 63
+		}
 		if atomic.CompareAndSwapUint64(&q.tail, tailvalue, head) {
 			break
 		}
 		head = atomic.LoadUint64(&q.head)
+		if originalHead < head {
+			// Only one dequeuer will catchup tail and head.
+			break
+		}
 		tailvalue = atomic.LoadUint64(&q.tail)
 		tail := uint64Get63(tailvalue)
 		if tail >= head {
