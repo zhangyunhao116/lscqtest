@@ -221,7 +221,8 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 		T := uint64Get63(tailvalue)
 		if T <= H+1 {
 			// The queue is empty.
-			q.catchup(tailvalue, H+1)
+			// q.catchup(tailvalue, H+1)
+			q.fixstate(H + 1)
 			atomic.AddInt64(&q.threshold, -1)
 			return
 		}
@@ -234,7 +235,7 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 func (q *uint64SCQ) catchup(tailvalue, head uint64) {
 	originalHead := head
 	for {
-		if uint64Get1(tailvalue) {
+		if uint64Get1(tailvalue) { // add closed bit if needed
 			head += 1 << 63
 		}
 		if atomic.CompareAndSwapUint64(&q.tail, tailvalue, head) {
@@ -242,13 +243,34 @@ func (q *uint64SCQ) catchup(tailvalue, head uint64) {
 		}
 		head = atomic.LoadUint64(&q.head)
 		if originalHead < head {
-			// Only one dequeuer will catchup tail and head.
+			// Only the last dequeuer will catchup tail and head.
 			break
 		}
 		tailvalue = atomic.LoadUint64(&q.tail)
 		tail := uint64Get63(tailvalue)
 		if tail >= head {
 			break
+		}
+	}
+}
+
+func (q *uint64SCQ) fixstate(originalHead uint64) {
+	for {
+		head := atomic.LoadUint64(&q.head)
+		if originalHead < head {
+			// The last dequeuer will be responsible for fixstate.
+			return
+		}
+		tailvalue := atomic.LoadUint64(&q.tail)
+		tail := uint64Get63(tailvalue)
+		if tail >= head {
+			return
+		}
+		if uint64Get1(tailvalue) { // add closed bit if needed
+			head += 1 << 63
+		}
+		if atomic.CompareAndSwapUint64(&q.tail, tailvalue, head) {
+			return
 		}
 	}
 }
