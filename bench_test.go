@@ -32,18 +32,12 @@ func BenchmarkDefault(b *testing.B) {
 		},
 	}}
 	all = all[:1]
-	// all = append(make([]benchTask, 0), all[3])
 	benchEnqueueOnly(b, all)
 	benchDequeueOnlyEmpty(b, all)
 	benchPair(b, all)
 	bench50Enqueue50Dequeue(b, all)
 	bench30Enqueue70Dequeue(b, all)
 	bench70Enqueue30Dequeue(b, all)
-}
-
-func Benchmark1000CPU(b *testing.B) {
-	b.SetParallelism(1000)
-	BenchmarkDefault(b)
 }
 
 func reportalloc(b *testing.B) {
