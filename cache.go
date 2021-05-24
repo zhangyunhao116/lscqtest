@@ -15,10 +15,10 @@ func cacheRemap2(index, slicecap int) int {
 	return res
 }
 
-func cacheRemap3(index uint64) uint64 {
+func cacheRemap16Byte(index uint64) uint64 {
 	const cacheLineSize = cacheLineSize / 2
-	cacheLineNum := (index) % (scqsize / uint64(cacheLineSize))
-	idx := index / (scqsize / uint64(cacheLineSize))
-	res := cacheLineNum*uint64(cacheLineSize) + idx
-	return res
+	rawIndex := index & uint64(scqsize-1)
+	cacheLineNum := (rawIndex) % (scqsize / uint64(cacheLineSize))
+	cacheLineIdx := rawIndex / (scqsize / uint64(cacheLineSize))
+	return cacheLineNum*uint64(cacheLineSize) + cacheLineIdx
 }
