@@ -84,6 +84,7 @@ func (q *PointerLSCQ) Enqueue(data unsafe.Pointer) bool {
 }
 
 type pointerSCQ struct {
+	_         [cacheLineSize]byte
 	head      uint64
 	_         [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
 	tail      uint64 // 1-bit finalize + 63-bit tail

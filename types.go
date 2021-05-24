@@ -85,6 +85,7 @@ func (q *Uint64LSCQ) Enqueue(data uint64) bool {
 }
 
 type uint64SCQ struct {
+	_         [cacheLineSize]byte
 	head      uint64
 	_         [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
 	tail      uint64 // 1-bit finalize + 63-bit tail
@@ -144,11 +145,10 @@ func (q *uint64SCQ) Enqueue(data uint64) bool {
 		entAddr := &q.ring[cacheRemap3(T&uint64(scqsize-1))]
 		cycleT := T / scqsize
 	eqretry:
+		// Enqueue do not need data, if this entry is empty, we can assume the data is also empty.
 		entFlags := atomic.LoadUint64((*uint64)(unsafe.Pointer(entAddr)))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(entFlags)
 		ent := scqNodeUint64{flags: entFlags}
-		// ent := loadSCQNodeUint64(unsafe.Pointer(entAddr))
-		// isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
 		if cycleEnt < cycleT && isEmpty && (isSafe || atomic.LoadUint64(&q.head) <= T) {
 			// We can use this entry for adding new data if
 			// 1. cycleEnt < cycleT
