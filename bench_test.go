@@ -38,8 +38,6 @@ func BenchmarkDefault(b *testing.B) {
 	bench50Enqueue50Dequeue(b, all)
 	bench30Enqueue70Dequeue(b, all)
 	bench70Enqueue30Dequeue(b, all)
-	// bench10Enqueue90Dequeue(b, all)
-	// bench90Enqueue10Dequeue(b, all)
 }
 
 func reportalloc(b *testing.B) {

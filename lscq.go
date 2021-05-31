@@ -127,7 +127,7 @@ func (q *pointerSCQ) reset() {
 }
 
 func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
-	// If TAIL >= HEAD + 2n, means this queue is full.
+	// If TAIL >= HEAD + scqsize, means this queue is full.
 	qhead := atomic.LoadUint64(&q.head)
 	if uint64Get63(atomic.LoadUint64(&q.tail)) >= qhead+scqsize {
 		return false
@@ -138,7 +138,9 @@ func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 		tailvalue := atomic.AddUint64(&q.tail, 1)
 		tailvalue -= 1 // we need previous value
 		T := uint64Get63(tailvalue)
-		if uint64Get1(tailvalue) { // the queue is closed
+		if uint64Get1(tailvalue) {
+			// The queue is closed, return false, so following enqueuer
+			// will insert this data into next SCQ.
 			return false
 		}
 		entAddr := &q.ring[cacheRemap16Byte(T)]
@@ -150,8 +152,8 @@ func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 		ent := scqNodePointer{flags: entFlags}
 		if cycleEnt < cycleT && isEmpty && (isSafe || atomic.LoadUint64(&q.head) <= T) {
 			// We can use this entry for adding new data if
-			// 1. cycleEnt < cycleT
-			// 2. It is empty
+			// 1. Entry's cycle is bigger than tail's cycle.
+			// 2. It is empty.
 			// 3. It is safe or tail >= head (There is enough space for this data)
 			newEnt := scqNodePointer{flags: newSCQFlags(true, false, cycleT), data: data}
 			// Save input data into this entry.
@@ -167,10 +169,12 @@ func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 		}
 		// Add a full queue check in the loop(CAS2).
 		if T+1 >= qhead+scqsize {
-			qhead := atomic.LoadUint64(&q.head)
-			if T+1 >= qhead+scqsize {
-				return false
-			}
+			// T is tail's value before FAA(1), latest tail is T+1.
+			// qhead := atomic.LoadUint64(&q.head)
+			// if T+1 >= qhead+scqsize {
+			// 	return false
+			// }
+			return false
 		}
 	}
 }
@@ -189,9 +193,6 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 		cycleH := H / scqsize
 		retrycount := 0
 	dqretry:
-		// entFlags := atomic.LoadUint64((*uint64)(unsafe.Pointer(entAddr)))
-		// isSafe, isEmpty, cycleEnt := loadSCQFlags(entFlags)
-		// ent := scqNodePointer{flags: entFlags}
 		ent := loadSCQNodePointer(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
 		if cycleEnt == cycleH { // same cycle, return this entry directly
@@ -203,14 +204,14 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 			retrycount++
 			goto dqretry
 		}
-		// Try to mark this node unsafe.
-		var newEnt scqNodePointer
-		if isEmpty {
-			newEnt = scqNodePointer{flags: newSCQFlags(isSafe, true, cycleH)}
-		} else {
-			newEnt = scqNodePointer{flags: newSCQFlags(false, false, cycleEnt), data: ent.data}
-		}
 		if cycleEnt < cycleH {
+			// Try to mark this node unsafe.
+			var newEnt scqNodePointer
+			if isEmpty {
+				newEnt = scqNodePointer{flags: newSCQFlags(isSafe, true, cycleH)}
+			} else {
+				newEnt = scqNodePointer{flags: newSCQFlags(false, false, cycleEnt), data: ent.data}
+			}
 			if !compareAndSwapSCQNodePointer(entAddr, ent, newEnt) {
 				goto dqretry
 			}
