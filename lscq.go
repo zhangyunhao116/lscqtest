@@ -191,7 +191,6 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 		H -= 1 // we need previous value
 		entAddr := &q.ring[cacheRemap16Byte(H)]
 		cycleH := H / scqsize
-		retrycount := 0
 	dqretry:
 		ent := loadSCQNodePointer(unsafe.Pointer(entAddr))
 		isSafe, isEmpty, cycleEnt := loadSCQFlags(ent.flags)
@@ -199,10 +198,6 @@ func (q *pointerSCQ) Dequeue() (data unsafe.Pointer, ok bool) {
 			// atomicTestAndSetSecondBit(&entAddr.flags)
 			compareAndSwapSCQNodePointer(entAddr, ent, scqNodePointer{flags: newSCQFlags(isSafe, true, cycleEnt)})
 			return ent.data, true
-		}
-		if retrycount <= 3 {
-			retrycount++
-			goto dqretry
 		}
 		if cycleEnt < cycleH {
 			// Try to mark this node unsafe.
