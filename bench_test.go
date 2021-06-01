@@ -32,6 +32,12 @@ func BenchmarkDefault(b *testing.B) {
 		},
 	}}
 	all = all[:1]
+	// all = append(all, benchTask{
+	// 	name: "channel",
+	// 	New: func() uint64queue {
+	// 		return newChannelQ(1024)
+	// 	},
+	// })
 	benchEnqueueOnly(b, all)
 	benchDequeueOnlyEmpty(b, all)
 	benchPair(b, all)

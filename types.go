@@ -46,8 +46,7 @@ func (q *Uint64LSCQ) Dequeue() (data uint64, ok bool) {
 		}
 		if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.head)), (unsafe.Pointer(cq)), nex) {
 			// We can't ensure no other goroutines will access cq.
-			// This queue can still be previous dequeue's cq.
-			// scqpool.Put(cq)
+			// The cq can still be previous dequeue's cq.
 			cq = nil
 		}
 	}
@@ -77,9 +76,9 @@ func (q *Uint64LSCQ) Enqueue(data uint64) bool {
 			atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.tail)), unsafe.Pointer(cq), unsafe.Pointer(ncq))
 			return true
 		}
-		ncq.Dequeue()
 		// CAS failed, put this new SCQ into scqpool.
 		// No other goroutines will access this queue.
+		ncq.Dequeue()
 		uint64SCQpool.Put(ncq)
 	}
 }
