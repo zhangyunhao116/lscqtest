@@ -15,6 +15,14 @@ func cacheRemap2(index, slicecap int) int {
 	return res
 }
 
+var indexTable [scqsize]uint64
+
+func init() {
+	for i := 0; i < scqsize; i++ {
+		indexTable[i] = cacheRemap16Byte(uint64(i))
+	}
+}
+
 func cacheRemap16Byte(index uint64) uint64 {
 	const cacheLineSize = cacheLineSize / 2
 	rawIndex := index & uint64(scqsize-1)

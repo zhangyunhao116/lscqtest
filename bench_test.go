@@ -1,6 +1,7 @@
 package lscq
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"github.com/zhangyunhao116/fastrand"
@@ -14,6 +15,18 @@ type uint64queue interface {
 type benchTask struct {
 	name string
 	New  func() uint64queue
+}
+
+type faa int64
+
+func (data *faa) Enqueue(_ uint64) bool {
+	atomic.AddInt64((*int64)(data), 1)
+	return true
+}
+
+func (data *faa) Dequeue() (uint64, bool) {
+	atomic.AddInt64((*int64)(data), -1)
+	return 0, false
 }
 
 func BenchmarkDefault(b *testing.B) {
@@ -36,6 +49,12 @@ func BenchmarkDefault(b *testing.B) {
 	// 	name: "channel",
 	// 	New: func() uint64queue {
 	// 		return newChannelQ(1024)
+	// 	},
+	// })
+	// all = append(all, benchTask{
+	// 	name: "FAA",
+	// 	New: func() uint64queue {
+	// 		return new(faa)
 	// 	},
 	// })
 	benchEnqueueOnly(b, all)
