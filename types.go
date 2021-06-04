@@ -65,7 +65,12 @@ func (q *Uint64LSCQ) Enqueue(data uint64) bool {
 			return true
 		}
 		// Concurrent cq is full.
-		atomicTestAndSetFirstBit(&cq.tail)      // close cq, subsequent enqueue will fail
+		atomicTestAndSetFirstBit(&cq.tail) // close cq, subsequent enqueue will fail
+		cq.mu.Lock()
+		if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&cq.next))) != nil {
+			cq.mu.Unlock()
+			continue
+		}
 		ncq := uint64SCQpool.Get().(*uint64SCQ) // create a new queue
 		// ncq.reset()
 		ncq.Enqueue(data)
@@ -74,12 +79,14 @@ func (q *Uint64LSCQ) Enqueue(data uint64) bool {
 			// Success.
 			// Try move cq.next into tail (we don't need to recheck since other enqueuer will help).
 			atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&q.tail)), unsafe.Pointer(cq), unsafe.Pointer(ncq))
+			cq.mu.Unlock()
 			return true
 		}
 		// CAS failed, put this new SCQ into scqpool.
 		// No other goroutines will access this queue.
 		ncq.Dequeue()
 		uint64SCQpool.Put(ncq)
+		cq.mu.Unlock()
 	}
 }
 
@@ -93,6 +100,7 @@ type uint64SCQ struct {
 	_         [cacheLineSize - unsafe.Sizeof(new(uint64))]byte
 	next      *uint64SCQ
 	ring      []scqNodeUint64
+	mu        sync.Mutex
 }
 
 type scqNodeUint64 struct {

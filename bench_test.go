@@ -29,32 +29,59 @@ func (data *faa) Dequeue() (uint64, bool) {
 	return 0, false
 }
 
+type mixedQueue struct {
+	scq *uint64SCQ
+	lq  *msqv1
+}
+
+func newMixedQueue() *mixedQueue {
+	scq := newUint64SCQ(scqsize)
+	lq := newMSQv1()
+	return &mixedQueue{scq: scq, lq: lq}
+}
+
+func (q *mixedQueue) Enqueue(data uint64) bool {
+	if q.scq.Enqueue(data) {
+		return true
+	}
+	return q.lq.Enqueue(data)
+}
+
+func (q *mixedQueue) Dequeue() (uint64, bool) {
+	data, ok := q.lq.Dequeue()
+	if ok {
+		return data, ok
+	}
+	return q.scq.Dequeue()
+}
+
 func BenchmarkDefault(b *testing.B) {
 	all := []benchTask{{
 		name: "LSCQ", New: func() uint64queue {
 			return NewUint64()
-		}}, {
-		name: "LinkedQ", New: func() uint64queue {
-			return newLQ()
-		}}, {
-		name: "MSQ", New: func() uint64queue {
-			return newMSQv1()
-		}}, {
-		name: "LSCQ2", New: func() uint64queue {
-			return newLSCQ2()
-		},
-	}}
-	all = all[:1]
+		}}}
 	// all = append(all, benchTask{
-	// 	name: "channel",
+	// 	name: "linkedQ",
 	// 	New: func() uint64queue {
-	// 		return newChannelQ(1024)
+	// 		return newLQ()
+	// 	},
+	// })
+	// all = append(all, benchTask{
+	// 	name: "msqueue",
+	// 	New: func() uint64queue {
+	// 		return newMSQv1()
 	// 	},
 	// })
 	// all = append(all, benchTask{
 	// 	name: "FAA",
 	// 	New: func() uint64queue {
 	// 		return new(faa)
+	// 	},
+	// })
+	// all = append(all, benchTask{
+	// 	name: "mixed",
+	// 	New: func() uint64queue {
+	// 		return newMixedQueue()
 	// 	},
 	// })
 	benchEnqueueOnly(b, all)
