@@ -135,8 +135,7 @@ func (q *pointerSCQ) reset() {
 
 func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 	// If TAIL >= HEAD + scqsize, means this queue is full.
-	qhead := atomic.LoadUint64(&q.head)
-	if uint64Get63(atomic.LoadUint64(&q.tail)) >= qhead+scqsize {
+	if uint64Get63(atomic.LoadUint64(&q.tail)) >= atomic.LoadUint64(&q.head)+scqsize {
 		return false
 	}
 
@@ -175,12 +174,8 @@ func (q *pointerSCQ) Enqueue(data unsafe.Pointer) bool {
 			return true
 		}
 		// Add a full queue check in the loop(CAS2).
-		if T+1 >= qhead+scqsize {
+		if T+1 >= atomic.LoadUint64(&q.head)+scqsize {
 			// T is tail's value before FAA(1), latest tail is T+1.
-			// qhead := atomic.LoadUint64(&q.head)
-			// if T+1 >= qhead+scqsize {
-			// 	return false
-			// }
 			return false
 		}
 	}
