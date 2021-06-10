@@ -219,7 +219,6 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 		T := uint64Get63(tailvalue)
 		if T <= H+1 {
 			// The queue is empty.
-			// q.catchup(tailvalue, H+1)
 			q.fixstate(H + 1)
 			atomic.AddInt64(&q.threshold, -1)
 			return
