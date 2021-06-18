@@ -163,10 +163,14 @@ func (q *uint64CRQ) Dequeue() (data uint64, ok bool) {
 			goto Line52
 		}
 		if !isEmpty {
-			if compareAndSwapCRQNodeUint64(entAddr, ent, crqNodeUint64{flags: newSCQFlags(isSafe, true, H+scqsize)}) {
-				return ent.data, true
+			if idx == H {
+				if compareAndSwapCRQNodeUint64(entAddr, ent, crqNodeUint64{flags: newSCQFlags(isSafe, true, H+scqsize)}) {
+					return ent.data, true
+				}
 			} else { // mark unsafe
-				if compareAndSwapCRQNodeUint64(entAddr, ent, crqNodeUint64{flags: newSCQFlags(false, isEmpty, idx)}) {
+				newEnt := ent
+				newEnt.flags = ent.flags & (1<<63 - 1)
+				if compareAndSwapCRQNodeUint64(entAddr, ent, newEnt) {
 					goto Line52
 				}
 			}
