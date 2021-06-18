@@ -84,6 +84,12 @@ func BenchmarkDefault(b *testing.B) {
 	// 		return newChannelQ(scqsize)
 	// 	},
 	// })
+	// all = append(all, benchTask{
+	// 	name: "LCRQ",
+	// 	New: func() uint64queue {
+	// 		return newLCRQ()
+	// 	},
+	// })
 	benchEnqueueOnly(b, all)
 	benchDequeueOnlyEmpty(b, all)
 	benchPair(b, all)

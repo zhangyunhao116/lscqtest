@@ -14,9 +14,13 @@ func loadSCQNodePointer(addr unsafe.Pointer) (val scqNodePointer)
 
 func loadSCQNodeUint64(addr unsafe.Pointer) (val scqNodeUint64)
 
+func loadCRQNodeUint64(addr unsafe.Pointer) (val crqNodeUint64)
+
 func compareAndSwapSCQNodePointer(addr *scqNodePointer, old, new scqNodePointer) (swapped bool)
 
 func compareAndSwapSCQNodeUint64(addr *scqNodeUint64, old, new scqNodeUint64) (swapped bool)
+
+func compareAndSwapCRQNodeUint64(addr *crqNodeUint64, old, new crqNodeUint64) (swapped bool)
 
 func atomicTestAndSetFirstBit(addr *uint64) (val uint64)
 

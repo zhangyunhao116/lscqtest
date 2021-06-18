@@ -28,6 +28,9 @@ TEXT ·loadUint128(SB),NOSPLIT,$0
 TEXT ·loadSCQNodeUint64(SB),NOSPLIT,$0
 	JMP ·loadUint128(SB)
 
+TEXT ·loadCRQNodeUint64(SB),NOSPLIT,$0
+	JMP ·loadUint128(SB)
+
 TEXT ·loadSCQNodePointer(SB),NOSPLIT,$0
 	JMP ·loadUint128(SB)
 
@@ -35,6 +38,9 @@ TEXT ·compareAndSwapSCQNodePointer(SB),NOSPLIT,$0
 	JMP ·compareAndSwapUint128(SB)
 
 TEXT ·compareAndSwapSCQNodeUint64(SB),NOSPLIT,$0
+	JMP ·compareAndSwapUint128(SB)
+
+TEXT ·compareAndSwapCRQNodeUint64(SB),NOSPLIT,$0
 	JMP ·compareAndSwapUint128(SB)
 
 TEXT ·atomicTestAndSetFirstBit(SB),NOSPLIT,$0
