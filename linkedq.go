@@ -20,10 +20,8 @@ func newLQ() *linkedqueue {
 
 func (q *linkedqueue) Enqueue(value uint64) bool {
 	q.mu.Lock()
-	if q.tail.next == nil {
-		q.tail.next = &linkedqueueNode{value: value}
-		q.tail = q.tail.next
-	}
+	q.tail.next = &linkedqueueNode{value: value}
+	q.tail = q.tail.next
 	q.mu.Unlock()
 	return true
 }

@@ -79,9 +79,9 @@ func BenchmarkDefault(b *testing.B) {
 	// 	},
 	// })
 	// all = append(all, benchTask{
-	// 	name: "mixed",
+	// 	name: "channel",
 	// 	New: func() uint64queue {
-	// 		return newMixedQueue()
+	// 		return newChannelQ(scqsize)
 	// 	},
 	// })
 	benchEnqueueOnly(b, all)
