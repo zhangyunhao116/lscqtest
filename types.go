@@ -229,28 +229,6 @@ func (q *uint64SCQ) Dequeue() (data uint64, ok bool) {
 	}
 }
 
-func (q *uint64SCQ) catchup(tailvalue, head uint64) {
-	originalHead := head
-	for {
-		if uint64Get1(tailvalue) { // add closed bit if needed
-			head += 1 << 63
-		}
-		if atomic.CompareAndSwapUint64(&q.tail, tailvalue, head) {
-			break
-		}
-		head = atomic.LoadUint64(&q.head)
-		if originalHead < head {
-			// Only the last dequeuer will catchup tail and head.
-			break
-		}
-		tailvalue = atomic.LoadUint64(&q.tail)
-		tail := uint64Get63(tailvalue)
-		if tail >= head {
-			break
-		}
-	}
-}
-
 func (q *uint64SCQ) fixstate(originalHead uint64) {
 	for {
 		head := atomic.LoadUint64(&q.head)
@@ -259,12 +237,9 @@ func (q *uint64SCQ) fixstate(originalHead uint64) {
 			return
 		}
 		tailvalue := atomic.LoadUint64(&q.tail)
-		tail := uint64Get63(tailvalue)
-		if tail >= head {
+		if tailvalue >= head {
+			// The queue has been closed, or in normal state.
 			return
-		}
-		if uint64Get1(tailvalue) { // add closed bit if needed
-			head += 1 << 63
 		}
 		if atomic.CompareAndSwapUint64(&q.tail, tailvalue, head) {
 			return
