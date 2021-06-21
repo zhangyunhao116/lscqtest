@@ -90,6 +90,12 @@ func BenchmarkDefault(b *testing.B) {
 	// 		return newLCRQ()
 	// 	},
 	// })
+	// all = append(all, benchTask{
+	// 	name: "Pool",
+	// 	New: func() uint64queue {
+	// 		return newPoolQueue()
+	// 	},
+	// })
 	benchEnqueueOnly(b, all)
 	benchDequeueOnlyEmpty(b, all)
 	benchPair(b, all)
