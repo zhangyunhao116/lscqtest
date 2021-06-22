@@ -30,7 +30,7 @@ func (q *PoolQueue) Dequeue() (interface{}, bool) {
 		runtime_procUnpin()
 		return data, true
 	}
-	size := q.maxprocs
+	size := runtime.GOMAXPROCS(0)
 	for i := 0; i < size; i++ {
 		data, ok := q.all[(pid+i+1)%size].popTail()
 		if ok {
@@ -42,33 +42,29 @@ func (q *PoolQueue) Dequeue() (interface{}, bool) {
 	return 0, false
 }
 
-type PoolQueueUint64 struct {
-	all      []poolChain
-	maxprocs int
+type PoolQueueUint64 []poolChain
+
+func NewPoolQueueUint64() PoolQueueUint64 {
+	return make([]poolChain, 128)
 }
 
-func NewPoolQueueUint64() *PoolQueueUint64 {
-	maxprocs := runtime.GOMAXPROCS(0)
-	return &PoolQueueUint64{all: make([]poolChain, maxprocs), maxprocs: maxprocs}
-}
-
-func (q *PoolQueueUint64) Enqueue(data uint64) bool {
+func (q PoolQueueUint64) Enqueue(data uint64) bool {
 	pid := runtime_procPin()
-	q.all[pid].pushHead(data)
+	q[pid].pushHead(data)
 	runtime_procUnpin()
 	return true
 }
 
-func (q *PoolQueueUint64) Dequeue() (uint64, bool) {
+func (q PoolQueueUint64) Dequeue() (uint64, bool) {
 	pid := runtime_procPin()
-	data, ok := q.all[pid].popHead()
+	data, ok := q[pid].popHead()
 	if ok {
 		runtime_procUnpin()
 		return data.(uint64), true
 	}
-	size := q.maxprocs
+	size := len(q)
 	for i := 0; i < size; i++ {
-		data, ok := q.all[(pid+i+1)%size].popTail()
+		data, ok := q[(pid+i+1)%size].popTail()
 		if ok {
 			runtime_procUnpin()
 			return data.(uint64), true
