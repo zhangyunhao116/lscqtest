@@ -6,48 +6,69 @@ import (
 	"unsafe"
 )
 
-type rawPoolQueue struct {
-	inner poolChain
+type PoolQueue struct {
+	all      []poolChain
+	maxprocs int
 }
 
-func newRawPoolQueue() *rawPoolQueue {
-	return new(rawPoolQueue)
+func NewPoolQueue() *PoolQueue {
+	maxprocs := runtime.GOMAXPROCS(0)
+	return &PoolQueue{all: make([]poolChain, maxprocs), maxprocs: maxprocs}
 }
 
-func (q *rawPoolQueue) Enqueue(data uint64) bool {
-	q.inner.pushHead(data)
-	return true
-}
-
-func (q *rawPoolQueue) Dequeue() (uint64, bool) {
-	data, ok := q.inner.popTail()
-	if ok {
-		return data.(uint64), true
-	}
-	return 0, false
-}
-
-func newPoolQueue() *poolQueue {
-	return &poolQueue{all: make([]poolChain, runtime.GOMAXPROCS(0))}
-}
-
-func (q *poolQueue) Enqueue(data uint64) bool {
+func (q *PoolQueue) Enqueue(data interface{}) bool {
 	pid := runtime_procPin()
 	q.all[pid].pushHead(data)
 	runtime_procUnpin()
 	return true
 }
 
-func (q *poolQueue) Dequeue() (uint64, bool) {
+func (q *PoolQueue) Dequeue() (interface{}, bool) {
+	pid := runtime_procPin()
+	data, ok := q.all[pid].popHead()
+	if ok {
+		runtime_procUnpin()
+		return data, true
+	}
+	size := q.maxprocs
+	for i := 0; i < size; i++ {
+		data, ok := q.all[(pid+i+1)%size].popTail()
+		if ok {
+			runtime_procUnpin()
+			return data, true
+		}
+	}
+	runtime_procUnpin()
+	return 0, false
+}
+
+type PoolQueueUint64 struct {
+	all      []poolChain
+	maxprocs int
+}
+
+func NewPoolQueueUint64() *PoolQueueUint64 {
+	maxprocs := runtime.GOMAXPROCS(0)
+	return &PoolQueueUint64{all: make([]poolChain, maxprocs), maxprocs: maxprocs}
+}
+
+func (q *PoolQueueUint64) Enqueue(data uint64) bool {
+	pid := runtime_procPin()
+	q.all[pid].pushHead(data)
+	runtime_procUnpin()
+	return true
+}
+
+func (q *PoolQueueUint64) Dequeue() (uint64, bool) {
 	pid := runtime_procPin()
 	data, ok := q.all[pid].popHead()
 	if ok {
 		runtime_procUnpin()
 		return data.(uint64), true
 	}
-	size := runtime.GOMAXPROCS(0)
+	size := q.maxprocs
 	for i := 0; i < size; i++ {
-		data, ok := q.all[(pid+i+1)%int(size)].popTail()
+		data, ok := q.all[(pid+i+1)%size].popTail()
 		if ok {
 			runtime_procUnpin()
 			return data.(uint64), true
@@ -55,10 +76,6 @@ func (q *poolQueue) Dequeue() (uint64, bool) {
 	}
 	runtime_procUnpin()
 	return 0, false
-}
-
-type poolQueue struct {
-	all []poolChain
 }
 
 // poolDequeue is a lock-free fixed-size single-producer,
