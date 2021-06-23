@@ -38,35 +38,21 @@ func (q PoolQueue) Dequeue() (interface{}, bool) {
 	return 0, false
 }
 
-type PoolQueueUint64 []poolChain
+type PoolQueueUint64 PoolQueue
 
 func NewPoolQueueUint64() PoolQueueUint64 {
-	return make([]poolChain, 128)
+	return PoolQueueUint64(NewPoolQueue())
 }
 
 func (q PoolQueueUint64) Enqueue(data uint64) bool {
-	pid := runtime_procPin()
-	q[pid].pushHead(data)
-	runtime_procUnpin()
-	return true
+	return (PoolQueue)(q).Enqueue(data)
 }
 
 func (q PoolQueueUint64) Dequeue() (uint64, bool) {
-	pid := runtime_procPin()
-	data, ok := q[pid].popHead()
+	data, ok := (PoolQueue)(q).Dequeue()
 	if ok {
-		runtime_procUnpin()
 		return data.(uint64), true
 	}
-	size := len(q)
-	for i := 0; i < size; i++ {
-		data, ok := q[(pid+i+1)%size].popTail()
-		if ok {
-			runtime_procUnpin()
-			return data.(uint64), true
-		}
-	}
-	runtime_procUnpin()
 	return 0, false
 }
 
