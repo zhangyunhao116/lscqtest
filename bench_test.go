@@ -93,7 +93,7 @@ func BenchmarkDefault(b *testing.B) {
 	// all = append(all, benchTask{
 	// 	name: "Pool",
 	// 	New: func() uint64queue {
-	// 		return newPoolQueue()
+	// 		return NewPoolQueueUint64()
 	// 	},
 	// })
 	benchEnqueueOnly(b, all)

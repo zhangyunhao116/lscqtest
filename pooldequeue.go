@@ -6,33 +6,29 @@ import (
 	"unsafe"
 )
 
-type PoolQueue struct {
-	all      []poolChain
-	maxprocs int
+type PoolQueue []poolChain
+
+func NewPoolQueue() PoolQueue {
+	return make([]poolChain, runtime.GOMAXPROCS(0))
 }
 
-func NewPoolQueue() *PoolQueue {
-	maxprocs := runtime.GOMAXPROCS(0)
-	return &PoolQueue{all: make([]poolChain, maxprocs), maxprocs: maxprocs}
-}
-
-func (q *PoolQueue) Enqueue(data interface{}) bool {
+func (q PoolQueue) Enqueue(data interface{}) bool {
 	pid := runtime_procPin()
-	q.all[pid].pushHead(data)
+	q[pid].pushHead(data)
 	runtime_procUnpin()
 	return true
 }
 
-func (q *PoolQueue) Dequeue() (interface{}, bool) {
+func (q PoolQueue) Dequeue() (interface{}, bool) {
 	pid := runtime_procPin()
-	data, ok := q.all[pid].popHead()
+	data, ok := q[pid].popHead()
 	if ok {
 		runtime_procUnpin()
 		return data, true
 	}
 	size := runtime.GOMAXPROCS(0)
 	for i := 0; i < size; i++ {
-		data, ok := q.all[(pid+i+1)%size].popTail()
+		data, ok := q[(pid+i+1)%size].popTail()
 		if ok {
 			runtime_procUnpin()
 			return data, true
